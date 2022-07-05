@@ -120,7 +120,7 @@ public class WebSocketProxy extends WebSocketServer {
                             int read = selfClient.socketIn.read(data, 0, maxBuffSize);
                             if (read == maxBuffSize) {
                                 if (conn.isOpen()) conn.send(data);
-                            } else {
+                            } else if (read > 0) {
                                 byte[] trueData = new byte[read];
                                 System.arraycopy(data, 0, trueData, 0, read);
                                 if (conn.isOpen()) conn.send(trueData);
