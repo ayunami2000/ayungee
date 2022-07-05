@@ -28,6 +28,8 @@ public class Main {
 
     public static boolean forwarded = false;
 
+    public static boolean eaglerPackets = false;
+
     public static WebSocketServer webSocketServer = null;
 
     public static Map<WebSocket, Client> clients = new HashMap<>();
@@ -110,6 +112,7 @@ public class Main {
         port = (int) config.getOrDefault("port", 25569);
         webPort = (int) config.getOrDefault("web_port", 25565);
         forwarded = (boolean) config.getOrDefault("forwarded", false);
+        eaglerPackets = (boolean) config.getOrDefault("eag_packets", false);
 
         List<String> defaultMotd = new ArrayList<>();
 

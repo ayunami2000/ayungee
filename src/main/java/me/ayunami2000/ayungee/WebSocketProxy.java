@@ -139,12 +139,14 @@ public class WebSocketProxy extends WebSocketServer {
                 return;
             }
         }
+        byte[] packet = message.array();
+        if (!Main.eaglerPackets && packet.length >= 11 && packet[0] == -6 && packet[2] >= 4 && packet[4] == 69 && packet[6] == 65 && packet[8] == 71 && packet[10] == 124) return; // EAG|
         Client currClient = Main.clients.get(conn);
         if (currClient.socketOut == null) {
-            currClient.msgCache.add(message.array());
+            currClient.msgCache.add(packet);
         } else if (!currClient.socket.isOutputShutdown()) {
             try {
-                currClient.socketOut.write(message.array());
+                currClient.socketOut.write(packet);
             } catch (IOException ignored) {}
         }
     }

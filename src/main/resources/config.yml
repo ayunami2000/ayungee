@@ -6,6 +6,8 @@ port: 25569
 web_port: 25565
 # if this is behind a reverse proxy, such as caddy or nginx. uses X-Real-IP header.
 forwarded: false
+# forward eagler-specific packets?
+eag_packets: false
 # origin blacklist URL (leave empty to disable syncing)
 origin_blacklist: "https://g.eags.us/eaglercraft/origin_blacklist.txt"
 # whitelisted origins -- if specified, only allows the listed origins to connect
