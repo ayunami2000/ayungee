@@ -1,0 +1,4 @@
+.idea
+web
+target/*
+!target/ayungee-1.0-SNAPSHOT-jar-with-dependencies.jar
