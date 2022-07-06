@@ -16,10 +16,17 @@ public class Client {
 
     public String username;
 
+    public int server = 0;
+
+    public byte[] handshake = null;
+
+    public int clientEntityId;
+    public int serverEntityId;
+
     public void setSocket(Socket sock) throws IOException {
         socket = sock;
         socketOut = sock.getOutputStream();
-        socketIn = socket.getInputStream();
+        socketIn = sock.getInputStream();
     }
 
     public Client(String uname) {

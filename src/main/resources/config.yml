@@ -1,13 +1,10 @@
-# mc server ip
-hostname: localhost
-# mc server port
-port: 25569
+# mc servers in network. first one is default/hub
+servers:
+  - localhost:25569
 # ayungee port
 web_port: 25565
 # if this is behind a reverse proxy, such as caddy or nginx. uses X-Real-IP header.
 forwarded: false
-# forward eagler-specific packets?
-eag_packets: false
 # origin blacklist URL (leave empty to disable syncing)
 origin_blacklist: "https://g.eags.us/eaglercraft/origin_blacklist.txt"
 # whitelisted origins -- if specified, only allows the listed origins to connect

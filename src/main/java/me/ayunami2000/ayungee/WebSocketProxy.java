@@ -63,6 +63,7 @@ public class WebSocketProxy extends WebSocketServer {
         Client selfClient = Main.clients.remove(conn);
         if (selfClient != null) {
             System.out.println("Player " + selfClient.username + " (" + Main.getIp(conn) + ") left!");
+            Skins.removeSkin(selfClient.username);
             if (selfClient.socket.isClosed()) {
                 try {
                     selfClient.socket.close();
@@ -88,7 +89,7 @@ public class WebSocketProxy extends WebSocketServer {
     }
 
     @Override
-    public void onMessage(WebSocket conn, ByteBuffer message) {
+    public void onMessage(WebSocket conn, ByteBuffer message) { // todo: make use of the fact that it's already a bytebuffer dumbass
         if (Main.bans.contains(Main.getIp(conn))) {
             conn.close();
             return;
@@ -97,58 +98,130 @@ public class WebSocketProxy extends WebSocketServer {
         byte[] msg = message.array();
         if (!Main.clients.containsKey(conn)) {
             if (msg.length > 3 && msg[1] == (byte) 69) {
-                if (msg[3] < 3 || msg[3] > 16) {
+                // todo: it uses shorts dumbass, get with the system
+                short unameLen = (short) ((msg[2] << 8) + msg[3] & 0xff);
+                if (unameLen < 3 || unameLen > 16) {
                     conn.close();
                     return;
                 }
-                byte[] uname = new byte[msg[3]];
                 if (msg.length < 5 + msg[3] * 2) {
                     conn.close();
                     return;
                 }
+                byte[] uname = new byte[unameLen];
                 for (int i = 0; i < uname.length; i++) uname[i] = msg[5 + i * 2];
                 String username = new String(uname);
-                Main.clients.put(conn, new Client(username));
+                Client selfClient = new Client(username);
+                Main.clients.put(conn, selfClient);
                 new Thread(() -> {
                     try {
-                        Socket selfSocket = new Socket(Main.hostname, Main.port);
-                        Client selfClient = Main.clients.get(conn);
-                        selfClient.setSocket(selfSocket);
-                        while (selfClient.msgCache.size() > 0) selfClient.socketOut.write(selfClient.msgCache.remove(0));
-                        while (conn.isOpen() && !selfSocket.isInputShutdown()) {
-                            byte[] data = new byte[maxBuffSize];
-                            int read = selfClient.socketIn.read(data, 0, maxBuffSize);
-                            if (read == maxBuffSize) {
+                        boolean firstTime = true;
+                        while (conn.isOpen()) {
+                            int currServer = selfClient.server;
+                            ServerItem chosenServer = Main.servers.get(currServer);
+                            Socket selfSocket = new Socket(chosenServer.host, chosenServer.port);
+                            selfClient.setSocket(selfSocket);
+                            if (!firstTime) sendToServer(selfClient.handshake, selfClient);
+                            while (selfClient.msgCache.size() > 0) sendToServer(selfClient.msgCache.remove(0), selfClient);
+                            while (conn.isOpen() && !selfSocket.isInputShutdown() && selfClient.server == currServer) {
+                                byte[] dataa = new byte[maxBuffSize];
+                                int read = selfClient.socketIn.read(dataa, 0, maxBuffSize);
+                                byte[] data;
+                                if (read == maxBuffSize) {
+                                    data = dataa;
+                                } else if (read > 0) {
+                                    data = new byte[read];
+                                    System.arraycopy(dataa, 0, data, 0, read);
+                                } else {
+                                    continue;
+                                }
+                                if (firstTime && data[0] == 1) selfClient.clientEntityId = selfClient.serverEntityId = EntityMap.readInt(data, 1);
+                                if (!firstTime && data[0] == 1) {
+                                    selfClient.serverEntityId = EntityMap.readInt(data, 1);
+                                    // assume server is giving valid data; we don't have to validate it because it isn't a potentially malicious client
+                                    byte[] worldByte = new byte[data[6] * 2 + 2];
+                                    System.arraycopy(data, 5, worldByte, 0, worldByte.length);
+                                    byte gamemode = data[worldByte.length + 5];
+                                    byte dimension = data[worldByte.length + 6];
+                                    byte difficulty = data[worldByte.length + 7];
+                                    Arrays.fill(data, (byte) 0);
+                                    data[0] = 9;
+                                    EntityMap.setInt(data, 1, dimension);
+                                    data[5] = difficulty;
+                                    data[6] = gamemode;
+                                    data[7] = (byte)(256 & 0xff);
+                                    data[8] = (byte)((256 >> 8) & 0xff);
+                                    System.arraycopy(worldByte, 0, data, 9, worldByte.length);
+                                    read = 9 + worldByte.length;
+                                    byte[] trimData = new byte[read];
+                                    System.arraycopy(data, 0, trimData, 0, read);
+                                    data = trimData;
+                                    if (conn.isOpen()) conn.send(new byte[] { 9, 0, 0, 0, 1, 0, 0, 1, 0, 0, 7, 0, 100, 0, 101, 0, 102, 0, 97, 0, 117, 0, 108, 0, 116 });
+                                    if (conn.isOpen()) conn.send(new byte[] { 9, 0, 0, 0, -1, 0, 0, 1, 0, 0, 7, 0, 100, 0, 101, 0, 102, 0, 97, 0, 117, 0, 108, 0, 116 });
+                                }
+                                EntityMap.rewrite(data, selfClient.serverEntityId, selfClient.clientEntityId);
                                 if (conn.isOpen()) conn.send(data);
-                            } else if (read > 0) {
-                                byte[] trueData = new byte[read];
-                                System.arraycopy(data, 0, trueData, 0, read);
-                                if (conn.isOpen()) conn.send(trueData);
                             }
+                            if (conn.isOpen() && selfClient.server == currServer) conn.close();
+                            if (!selfSocket.isClosed()) selfSocket.close();
+                            selfClient.socketOut = null;
+                            firstTime = false;
                         }
-                        if (conn.isOpen()) conn.close();
-                        if (!selfSocket.isClosed()) selfSocket.close();
                     } catch (IOException ex) {
                         conn.close();
                     }
                 }).start();
                 msg[1] = (byte) 61;
+                selfClient.handshake = msg;
                 System.out.println("Player " + username + " (" + Main.getIp(conn) + ") joined!");
             } else {
                 conn.close();
                 return;
             }
         }
-        byte[] packet = message.array();
-        if (!Main.eaglerPackets && packet.length >= 11 && packet[0] == -6 && packet[2] >= 4 && packet[4] == 69 && packet[6] == 65 && packet[8] == 71 && packet[10] == 124) return; // EAG|
         Client currClient = Main.clients.get(conn);
-        if (currClient.socketOut == null) {
-            currClient.msgCache.add(packet);
-        } else if (!currClient.socket.isOutputShutdown()) {
+        if (msg.length >= 3 && msg[0] == 3) {
+            int msgLen = (short) ((msg[1] << 8) + msg[2] & 0xff);
+            if (msgLen != 0) {
+                if (msg.length >= 3 + msgLen * 2) {
+                    byte[] chatBytes = new byte[msgLen];
+                    for (int i = 0; i < chatBytes.length; i++) chatBytes[i] = msg[4 + i * 2];
+                    String chatMsg = new String(chatBytes);
+                    if (chatMsg.toLowerCase().startsWith("/server")) {
+                        String msgArgs = chatMsg.substring(7 + (chatMsg.contains(" ") ? 1 : 0));
+                        if (msgArgs.isEmpty()) {
+                            //usage msg
+                            conn.send(new byte[] { 3, 0, 25, 0, (byte) 167, 0, 57, 0, 85, 0, 115, 0, 97, 0, 103, 0, 101, 0, 58, 0, 32, 0, 47, 0, 115, 0, 101, 0, 114, 0, 118, 0, 101, 0, 114, 0, 32, 0, 60, 0, 110, 0, 117, 0, 109, 0, 98, 0, 101, 0, 114, 0, 62 });
+                        } else {
+                            try {
+                                int destServer = Integer.parseInt(msgArgs);
+                                currClient.server = Math.max(0, Math.min(Main.servers.size() - 1, destServer));
+                            } catch (NumberFormatException e) {
+                                //not a number
+                                conn.send(new byte[] { 3, 0, 29, 0, (byte) 167, 0, 57, 0, 84, 0, 104, 0, 97, 0, 116, 0, 32, 0, 105, 0, 115, 0, 32, 0, 110, 0, 111, 0, 116, 0, 32, 0, 97, 0, 32, 0, 118, 0, 97, 0, 108, 0, 105, 0, 100, 0, 32, 0, 110, 0, 117, 0, 109, 0, 98, 0, 101, 0, 114, 0, 33 });
+                            }
+                        }
+                        return; // don't send to underlying server
+                    }
+                }
+            }
+        }
+        if (msg.length > 0 && msg[0] == (byte) 250) {
+            if (Skins.setSkin(currClient.username, conn, msg)) return;
+        }
+        if (currClient.socketOut == null || currClient.socket.isOutputShutdown()) {
+            currClient.msgCache.add(msg);
+        } else {
             try {
-                currClient.socketOut.write(packet);
+                sendToServer(msg, currClient);
             } catch (IOException ignored) {}
         }
+    }
+
+    public void sendToServer(byte[] orig, Client client) throws IOException {
+        byte[] data = orig.clone();
+        EntityMap.rewrite(data, client.clientEntityId, client.serverEntityId);
+        client.socketOut.write(data);
     }
 
     @Override

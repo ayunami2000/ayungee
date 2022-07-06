@@ -7,9 +7,7 @@ import org.yaml.snakeyaml.Yaml;
 
 import javax.imageio.ImageIO;
 import java.io.*;
-import java.net.HttpURLConnection;
-import java.net.URL;
-import java.net.URLConnection;
+import java.net.*;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
@@ -19,16 +17,13 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 public class Main {
-    public static String hostname = "localhost";
-    public static int port = 25569;
+    public static List<ServerItem> servers = new ArrayList<>();
     public static int webPort = 25565;
 
     public static String motdJson = "";
     public static byte[] serverIcon = null;
 
     public static boolean forwarded = false;
-
-    public static boolean eaglerPackets = false;
 
     public static WebSocketServer webSocketServer = null;
 
@@ -107,12 +102,19 @@ public class Main {
             }).start();
         }
 
+        servers.add(new ServerItem("localhost", 25569));
 
-        hostname = (String) config.getOrDefault("hostname", "localhost");
-        port = (int) config.getOrDefault("port", 25569);
+        List<String> stringServers = (List<String>) config.getOrDefault("servers", new ArrayList<>());
+
+        if (!stringServers.isEmpty()) {
+            servers.clear();
+            for (String serverEntry : stringServers) {
+                servers.add(new ServerItem(serverEntry));
+            }
+        }
+
         webPort = (int) config.getOrDefault("web_port", 25565);
         forwarded = (boolean) config.getOrDefault("forwarded", false);
-        eaglerPackets = (boolean) config.getOrDefault("eag_packets", false);
 
         List<String> defaultMotd = new ArrayList<>();
 
@@ -168,7 +170,7 @@ public class Main {
             switch (pieces[0]) {
                 case "help":
                 case "?":
-                    System.out.println("help ; unban <ip> ; banip <ip> ; ban <username> ; stop");
+                    System.out.println("help ; unban <ip> ; banip <ip> ; ban <username> ; send <username> <serverid> ; stop");
                     break;
                 case "unban":
                 case "pardon":
@@ -227,6 +229,24 @@ public class Main {
                         saveBans();
                     } else {
                         System.out.println("IP " + pieces[1] + " is already banned!");
+                    }
+                    break;
+                case "send":
+                case "server":
+                    if (pieces.length == 1 || pieces.length == 2) {
+                        System.out.println("Usage: " + pieces[0] + " <username> <serverindex>");
+                        break;
+                    }
+                    Client targetUser = clients.values().stream().filter(client -> client.username.equals(pieces[1])).findFirst().orElse(clients.values().stream().filter(client -> client.username.equalsIgnoreCase(pieces[1])).findFirst().orElse(null));
+                    if (targetUser == null) {
+                        System.out.println("Unable to find any user with that username!");
+                        break;
+                    }
+                    try {
+                        int destServer = Integer.parseInt(pieces[2]);
+                        targetUser.server = Math.max(0, Math.min(servers.size() - 1, destServer));
+                    } catch (NumberFormatException e) {
+                        System.out.println("That is not a valid number!");
                     }
                     break;
                 case "stop":
