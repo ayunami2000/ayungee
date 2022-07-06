@@ -20,6 +20,10 @@ public class Client {
 
     public byte[] handshake = null;
 
+    public boolean firstTime = true;
+
+    public boolean hasLoginHappened = false;
+
     public int clientEntityId;
     public int serverEntityId;
 

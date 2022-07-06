@@ -115,14 +115,17 @@ public class WebSocketProxy extends WebSocketServer {
                 Main.clients.put(conn, selfClient);
                 new Thread(() -> {
                     try {
-                        boolean firstTime = true;
                         while (conn.isOpen()) {
                             int currServer = selfClient.server;
+                            selfClient.hasLoginHappened = false;
                             ServerItem chosenServer = Main.servers.get(currServer);
                             Socket selfSocket = new Socket(chosenServer.host, chosenServer.port);
                             selfClient.setSocket(selfSocket);
-                            if (!firstTime) sendToServer(selfClient.handshake, selfClient);
-                            while (selfClient.msgCache.size() > 0) sendToServer(selfClient.msgCache.remove(0), selfClient);
+                            if (!selfClient.firstTime) sendToServer(selfClient.handshake, selfClient);
+                            if (selfClient.firstTime) {
+                                while (selfClient.msgCache.size() > 0)
+                                    sendToServer(selfClient.msgCache.remove(0), selfClient);
+                            }
                             while (conn.isOpen() && !selfSocket.isInputShutdown() && selfClient.server == currServer) {
                                 byte[] dataa = new byte[maxBuffSize];
                                 int read = selfClient.socketIn.read(dataa, 0, maxBuffSize);
@@ -135,8 +138,9 @@ public class WebSocketProxy extends WebSocketServer {
                                 } else {
                                     continue;
                                 }
-                                if (firstTime && data[0] == 1) selfClient.clientEntityId = selfClient.serverEntityId = EntityMap.readInt(data, 1);
-                                if (!firstTime && data[0] == 1) {
+                                if (data[0] == 1 && !selfClient.hasLoginHappened) selfClient.hasLoginHappened = true;
+                                if (selfClient.firstTime && data[0] == 1) selfClient.clientEntityId = selfClient.serverEntityId = EntityMap.readInt(data, 1);
+                                if (!selfClient.firstTime && data[0] == 1) {
                                     selfClient.serverEntityId = EntityMap.readInt(data, 1);
                                     // assume server is giving valid data; we don't have to validate it because it isn't a potentially malicious client
                                     byte[] worldByte = new byte[data[6] * 2 + 2];
@@ -165,7 +169,7 @@ public class WebSocketProxy extends WebSocketServer {
                             if (conn.isOpen() && selfClient.server == currServer) conn.close();
                             if (!selfSocket.isClosed()) selfSocket.close();
                             selfClient.socketOut = null;
-                            firstTime = false;
+                            selfClient.firstTime = false;
                         }
                     } catch (IOException ex) {
                         conn.close();
@@ -209,6 +213,7 @@ public class WebSocketProxy extends WebSocketServer {
         if (msg.length > 0 && msg[0] == (byte) 250) {
             if (Skins.setSkin(currClient.username, conn, msg)) return;
         }
+        if (!currClient.firstTime && !currClient.hasLoginHappened && !(msg[0] == 1 || msg[0] == 2)) return;
         if (currClient.socketOut == null || currClient.socket.isOutputShutdown()) {
             currClient.msgCache.add(msg);
         } else {
