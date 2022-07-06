@@ -111,6 +111,10 @@ public class WebSocketProxy extends WebSocketServer {
                 byte[] uname = new byte[unameLen];
                 for (int i = 0; i < uname.length; i++) uname[i] = msg[5 + i * 2];
                 String username = new String(uname);
+                if (Main.clients.values().stream().anyMatch(client -> client.username.equals(username))) {
+                    conn.close();
+                    return;
+                }
                 Client selfClient = new Client(username);
                 Main.clients.put(conn, selfClient);
                 new Thread(() -> {
