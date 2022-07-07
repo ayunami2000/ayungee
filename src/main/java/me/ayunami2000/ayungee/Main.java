@@ -14,7 +14,6 @@ import java.nio.file.StandardCopyOption;
 import java.time.Instant;
 import java.util.*;
 import java.util.regex.Pattern;
-import java.util.stream.Collectors;
 
 public class Main {
     public static List<ServerItem> servers = new ArrayList<>();
@@ -92,7 +91,7 @@ public class Main {
                         Files.copy(cc.getInputStream(), Paths.get("origin_blacklist.txt"), StandardCopyOption.REPLACE_EXISTING);
                         readUrlBlacklist();
                     } catch (IOException e) {
-                        System.out.println("An error occurred attempting to update the origin blacklist!");
+                        printMsg("An error occurred attempting to update the origin blacklist!");
                     }
                     try {
                         Thread.sleep(300000);
@@ -161,16 +160,49 @@ public class Main {
 
         BufferedReader reader = new BufferedReader(new InputStreamReader(System.in));
         boolean running = true;
-        System.out.println("ayungee started!");
+        printMsg("ayungee started!");
         while (running) {
-            //System.out.print("> ");
             String cmd = reader.readLine();
             String[] pieces = cmd.split(" ");
             pieces[0] = pieces[0].toLowerCase();
             switch (pieces[0]) {
                 case "help":
                 case "?":
-                    System.out.println("help ; unban <ip> ; banip <ip> ; ban <username> ; send <username> <serverid> ; stop");
+                    printMsg("help ; unban <ip> ; banip <ip> ; ban <username> ; kickip <ip> ; kick <username> ; send <username> <serverid> ; stop");
+                    break;
+                case "kick":
+                    if (pieces.length == 1) {
+                        printMsg("Usage: " + pieces[0] + " <username>");
+                        break;
+                    }
+                    //there should NEVER be duplicate usernames...
+                    Client[] targetClientss = clients.values().stream().filter(client -> client.username.equals(pieces[1])).toArray(Client[]::new);
+                    if (targetClientss.length == 0) targetClientss = clients.values().stream().filter(client -> client.username.equalsIgnoreCase(pieces[1])).toArray(Client[]::new);
+                    if (targetClientss.length == 0) {
+                        printMsg("Unable to find any user with that username!");
+                        break;
+                    }
+                    for (Client targetClient : targetClientss) {
+                        targetClient.conn.close();
+                        printMsg("Successfully kicked user " + targetClient);
+                    }
+                    break;
+                case "kickip":
+                case "kick-ip":
+                    if (pieces.length == 1) {
+                        printMsg("Usage: " + pieces[0] + " <ip>");
+                        break;
+                    }
+                    //there should NEVER be duplicate usernames...
+                    Client[] targetClientsss = clients.values().stream().filter(client -> getIp(client.conn).equals(pieces[1])).toArray(Client[]::new);
+                    if (targetClientsss.length == 0) {
+                        printMsg("Unable to find any user with that IP!");
+                        break;
+                    }
+                    for (Client targetClient : targetClientsss) {
+                        targetClient.conn.close();
+                        printMsg("Successfully kicked user " + targetClient);
+                    }
                     break;
                 case "unban":
                 case "pardon":
@@ -179,103 +211,105 @@ public class Main {
                 case "pardon-ip":
                 case "pardonip":
                     if (pieces.length == 1) {
-                        System.out.println("Usage: " + pieces[0] + " <ip>");
+                        printMsg("Usage: " + pieces[0] + " <ip>");
                         break;
                     }
                     if (bans.remove(pieces[1])) {
-                        System.out.println("Successfully unbanned IP " + pieces[1]);
+                        printMsg("Successfully unbanned IP " + pieces[1]);
                         saveBans();
                     } else {
-                        System.out.println("IP " + pieces[1] + " is not banned!");
+                        printMsg("IP " + pieces[1] + " is not banned!");
                     }
                     break;
                 case "ban":
                     if (pieces.length == 1) {
-                        System.out.println("Usage: " + pieces[0] + " <username>");
+                        printMsg("Usage: " + pieces[0] + " <username>");
                         break;
                     }
                     //there should NEVER be duplicate usernames...
                     Client[] targetClients = clients.values().stream().filter(client -> client.username.equals(pieces[1])).toArray(Client[]::new);
                     if (targetClients.length == 0) targetClients = clients.values().stream().filter(client -> client.username.equalsIgnoreCase(pieces[1])).toArray(Client[]::new);
                     if (targetClients.length == 0) {
-                        System.out.println("Unable to find any user with that username! (note: they must be online)");
+                        printMsg("Unable to find any user with that username! (note: they must be online)");
                         break;
                     }
                     for (Client targetClient : targetClients) {
-                        WebSocket targetWebSocket = getKeysByValue(clients, targetClient).stream().findFirst().orElse(null);
-                        if (targetWebSocket == null) {
-                            System.out.println("An internal error occurred which should never happen! Oops...");
-                            return;
-                        }
+                        WebSocket targetWebSocket = targetClient.conn;
                         String ipToBan = getIp(targetWebSocket);
                         if (bans.add(ipToBan)) {
-                            System.out.println("Successfully banned user " + targetClient.username + " with IP " + ipToBan);
+                            printMsg("Successfully banned user " + targetClient.username + " with IP " + ipToBan);
                             try {
                                 saveBans();
                             } catch (IOException ignored) {}
                         } else {
-                            System.out.println("IP " + ipToBan + " is already banned!");
+                            printMsg("IP " + ipToBan + " is already banned!");
                         }
                     }
                     break;
                 case "ban-ip":
                 case "banip":
                     if (pieces.length == 1) {
-                        System.out.println("Usage: " + pieces[0] + " <ip>");
+                        printMsg("Usage: " + pieces[0] + " <ip>");
                         break;
                     }
                     if (bans.add(pieces[1])) {
-                        System.out.println("Successfully banned IP " + pieces[1]);
+                        Client[] targetClientssss = clients.values().stream().filter(client -> getIp(client.conn).equals(pieces[1])).toArray(Client[]::new);
+                        for (Client client : targetClientssss) client.conn.close();
+                        printMsg("Successfully banned IP " + pieces[1]);
                         saveBans();
                     } else {
-                        System.out.println("IP " + pieces[1] + " is already banned!");
+                        printMsg("IP " + pieces[1] + " is already banned!");
                     }
                     break;
                 case "send":
                 case "server":
                     if (pieces.length == 1 || pieces.length == 2) {
-                        System.out.println("Usage: " + pieces[0] + " <username> <serverindex>");
+                        printMsg("Usage: " + pieces[0] + " <username> <serverindex>");
                         break;
                     }
                     Client targetUser = clients.values().stream().filter(client -> client.username.equals(pieces[1])).findFirst().orElse(clients.values().stream().filter(client -> client.username.equalsIgnoreCase(pieces[1])).findFirst().orElse(null));
                     if (targetUser == null) {
-                        System.out.println("Unable to find any user with that username!");
+                        printMsg("Unable to find any user with that username!");
                         break;
                     }
+                    // 99% sure don't need to worry about this
+                    /*
+                    if (!targetUser.hasLoginHappened) {
+                        printMsg("This user is still logging in to a server; please wait until they have logged in to change their server!");
+                        break;
+                    }
+                    */
                     try {
                         int destServer = Integer.parseInt(pieces[2]);
                         targetUser.server = Math.max(0, Math.min(servers.size() - 1, destServer));
+                        targetUser.socket.close();
+                        printMsg("Successfully send user " + targetUser + " to server " + destServer + "!");
                     } catch (NumberFormatException e) {
-                        System.out.println("That is not a valid number!");
+                        printMsg("That is not a valid number!");
                     }
                     break;
                 case "stop":
                 case "end":
                 case "exit":
                 case "quit":
-                    System.out.println("Stopping!");
+                    printMsg("Stopping!");
                     running = false;
                     webSocketServer.stop(10);
                     System.exit(0);
                     break;
                 default:
-                    System.out.println("Command not found!");
+                    printMsg("Command not found!");
             }
         }
     }
 
-    public static String getIp(WebSocket conn) {
-        return conn.getAttachment();
+    public static void printMsg(String msg) {
+        System.out.println(msg);
+        //System.out.print("> "); // todo: copy current input to after the >
     }
 
-    // https://stackoverflow.com/a/2904266/6917520
-
-    public static <T, E> Set<T> getKeysByValue(Map<T, E> map, E value) {
-        return map.entrySet()
-                .stream()
-                .filter(entry -> Objects.equals(entry.getValue(), value))
-                .map(Map.Entry::getKey)
-                .collect(Collectors.toSet());
+    public static String getIp(WebSocket conn) {
+        return conn.getAttachment();
     }
 
     private static void saveBans() throws IOException {

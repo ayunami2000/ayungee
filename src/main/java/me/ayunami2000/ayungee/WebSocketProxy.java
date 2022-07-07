@@ -62,7 +62,7 @@ public class WebSocketProxy extends WebSocketServer {
     public void onClose(WebSocket conn, int code, String reason, boolean remote) {
         Client selfClient = Main.clients.remove(conn);
         if (selfClient != null) {
-            System.out.println("Player " + selfClient.username + " (" + Main.getIp(conn) + ") left!");
+            Main.printMsg("Player " + selfClient + " left!");
             Skins.removeSkin(selfClient.username);
             if (selfClient.socket.isClosed()) {
                 try {
@@ -97,31 +97,33 @@ public class WebSocketProxy extends WebSocketServer {
         if (!conn.isOpen()) return;
         byte[] msg = message.array();
         if (!Main.clients.containsKey(conn)) {
-            if (msg.length > 3 && msg[1] == (byte) 69) {
-                // todo: it uses shorts dumbass, get with the system
-                short unameLen = (short) ((msg[2] << 8) + msg[3] & 0xff);
+            if (msg.length > 3 && msg[0] == 2 && msg[1] == 69) {
+                message.get();
+                message.get();
+                short unameLen = message.getShort();
                 if (unameLen < 3 || unameLen > 16) {
                     conn.close();
                     return;
                 }
-                if (msg.length < 5 + msg[3] * 2) {
+                if (msg.length < 5 + unameLen * 2) {
                     conn.close();
                     return;
                 }
-                byte[] uname = new byte[unameLen];
-                for (int i = 0; i < uname.length; i++) uname[i] = msg[5 + i * 2];
-                String username = new String(uname);
-                if (Main.clients.values().stream().anyMatch(client -> client.username.equals(username))) {
+                StringBuilder unameBuilder = new StringBuilder();
+                for (int i = 0; i < unameLen; i++) unameBuilder.append(message.getChar());
+                String username = unameBuilder.toString();
+                if (Main.clients.values().stream().anyMatch(client -> client.username.equals(username) || client.conn == conn)) {
                     conn.close();
                     return;
                 }
-                Client selfClient = new Client(username);
+                Client selfClient = new Client(conn, username);
                 Main.clients.put(conn, selfClient);
                 new Thread(() -> {
                     try {
                         while (conn.isOpen()) {
                             int currServer = selfClient.server;
                             selfClient.hasLoginHappened = false;
+                            if (!selfClient.firstTime) Main.printMsg("Player " + selfClient + " joined server " + selfClient.server + "!");
                             ServerItem chosenServer = Main.servers.get(currServer);
                             Socket selfSocket = new Socket(chosenServer.host, chosenServer.port);
                             selfClient.setSocket(selfSocket);
@@ -142,12 +144,16 @@ public class WebSocketProxy extends WebSocketServer {
                                 } else {
                                     continue;
                                 }
-                                if (data[0] == 1 && !selfClient.hasLoginHappened) selfClient.hasLoginHappened = true;
-                                if (selfClient.firstTime && data[0] == 1) selfClient.clientEntityId = selfClient.serverEntityId = EntityMap.readInt(data, 1);
-                                if (!selfClient.firstTime && data[0] == 1) {
+                                if (ChatHandler.serverChatMessage(selfClient, data)) continue;
+                                if (PluginMessages.serverPluginMessage(selfClient, data)) continue;
+                                boolean loginPacket = data[0] == 1;
+                                if (loginPacket && !selfClient.hasLoginHappened) selfClient.hasLoginHappened = true;
+                                if (selfClient.firstTime && loginPacket) selfClient.clientEntityId = selfClient.serverEntityId = EntityMap.readInt(data, 1);
+                                if (!selfClient.firstTime && loginPacket) {
                                     selfClient.serverEntityId = EntityMap.readInt(data, 1);
                                     // assume server is giving valid data; we don't have to validate it because it isn't a potentially malicious client
-                                    byte[] worldByte = new byte[data[6] * 2 + 2];
+                                    short worldByteLen = (short) ((data[5] << 8) + data[6] & 0xff);
+                                    byte[] worldByte = new byte[worldByteLen * 2 + 2];
                                     System.arraycopy(data, 5, worldByte, 0, worldByte.length);
                                     byte gamemode = data[worldByte.length + 5];
                                     byte dimension = data[worldByte.length + 6];
@@ -169,6 +175,7 @@ public class WebSocketProxy extends WebSocketServer {
                                 }
                                 EntityMap.rewrite(data, selfClient.serverEntityId, selfClient.clientEntityId);
                                 if (conn.isOpen()) conn.send(data);
+                                if (loginPacket) sendToServer(new byte[] { (byte) 250, 0, 8, 0, 82, 0, 69, 0, 71, 0, 73, 0, 83, 0, 84, 0, 69, 0, 82, 0, 10, 66, 117, 110, 103, 101, 101, 67, 111, 114, 100 }, selfClient);
                             }
                             if (conn.isOpen() && selfClient.server == currServer) conn.close();
                             if (!selfSocket.isClosed()) selfSocket.close();
@@ -181,42 +188,15 @@ public class WebSocketProxy extends WebSocketServer {
                 }).start();
                 msg[1] = (byte) 61;
                 selfClient.handshake = msg;
-                System.out.println("Player " + username + " (" + Main.getIp(conn) + ") joined!");
+                Main.printMsg("Player " + selfClient + " joined!");
             } else {
                 conn.close();
                 return;
             }
         }
         Client currClient = Main.clients.get(conn);
-        if (msg.length >= 3 && msg[0] == 3) {
-            int msgLen = (short) ((msg[1] << 8) + msg[2] & 0xff);
-            if (msgLen != 0) {
-                if (msg.length >= 3 + msgLen * 2) {
-                    byte[] chatBytes = new byte[msgLen];
-                    for (int i = 0; i < chatBytes.length; i++) chatBytes[i] = msg[4 + i * 2];
-                    String chatMsg = new String(chatBytes);
-                    if (chatMsg.toLowerCase().startsWith("/server")) {
-                        String msgArgs = chatMsg.substring(7 + (chatMsg.contains(" ") ? 1 : 0));
-                        if (msgArgs.isEmpty()) {
-                            //usage msg
-                            conn.send(new byte[] { 3, 0, 25, 0, (byte) 167, 0, 57, 0, 85, 0, 115, 0, 97, 0, 103, 0, 101, 0, 58, 0, 32, 0, 47, 0, 115, 0, 101, 0, 114, 0, 118, 0, 101, 0, 114, 0, 32, 0, 60, 0, 110, 0, 117, 0, 109, 0, 98, 0, 101, 0, 114, 0, 62 });
-                        } else {
-                            try {
-                                int destServer = Integer.parseInt(msgArgs);
-                                currClient.server = Math.max(0, Math.min(Main.servers.size() - 1, destServer));
-                            } catch (NumberFormatException e) {
-                                //not a number
-                                conn.send(new byte[] { 3, 0, 29, 0, (byte) 167, 0, 57, 0, 84, 0, 104, 0, 97, 0, 116, 0, 32, 0, 105, 0, 115, 0, 32, 0, 110, 0, 111, 0, 116, 0, 32, 0, 97, 0, 32, 0, 118, 0, 97, 0, 108, 0, 105, 0, 100, 0, 32, 0, 110, 0, 117, 0, 109, 0, 98, 0, 101, 0, 114, 0, 33 });
-                            }
-                        }
-                        return; // don't send to underlying server
-                    }
-                }
-            }
-        }
-        if (msg.length > 0 && msg[0] == (byte) 250) {
-            if (Skins.setSkin(currClient.username, conn, msg)) return;
-        }
+        if (ChatHandler.clientChatMessage(currClient, msg)) return;
+        if (PluginMessages.clientPluginMessage(currClient, msg)) return;
         if (!currClient.firstTime && !currClient.hasLoginHappened && !(msg[0] == 1 || msg[0] == 2)) return;
         if (currClient.socketOut == null || currClient.socket.isOutputShutdown()) {
             currClient.msgCache.add(msg);

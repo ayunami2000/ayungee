@@ -1,5 +1,7 @@
 package me.ayunami2000.ayungee;
 
+import org.java_websocket.WebSocket;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -13,6 +15,8 @@ public class Client {
     public InputStream socketIn = null;
 
     public List<byte[]> msgCache =new ArrayList<>();
+
+    public WebSocket conn;
 
     public String username;
 
@@ -33,7 +37,12 @@ public class Client {
         socketIn = sock.getInputStream();
     }
 
-    public Client(String uname) {
+    public Client(WebSocket c, String uname) {
+        conn = c;
         username = uname;
+    }
+
+    public String toString() {
+        return username + " (" + Main.getIp(conn) + ")";
     }
 }

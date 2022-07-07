@@ -4,7 +4,6 @@ import org.java_websocket.WebSocket;
 
 import java.io.ByteArrayOutputStream;
 import java.io.DataOutputStream;
-import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 
@@ -16,21 +15,9 @@ public class Skins {
     private static final int[] SKIN_DATA_SIZE = new int[] { 64*32*4, 64*64*4, -9, -9, 1, 64*64*4, -9 }; // 128 pixel skins crash clients
     private static final int[] CAPE_DATA_SIZE = new int[] { 32*32*4, -9, 1 };
 
-    public static boolean setSkin(String user, WebSocket conn, byte[] initMsg) {
-        if(initMsg.length >= 3) {
+    public static boolean setSkin(String user, WebSocket conn, String tag, byte[] msg) {
+        if(msg.length >= 3) {
             try {
-                ByteBuffer bb = ByteBuffer.wrap(initMsg);
-                bb.get();
-                int tagLen = bb.getShort();
-                if (!(tagLen >= 0 && tagLen < initMsg.length - 1)) return false;
-                StringBuilder tagBuilder = new StringBuilder();
-                for (int i = 0; i < tagLen; i++) tagBuilder.append(bb.getChar());
-                //int dataLen = bb.getShort();
-                int dataLen = bb.remaining() - 2;
-                String tag = tagBuilder.toString();
-                int offset = 3 + tagLen * 2 + 2;
-                byte[] msg = new byte[dataLen];
-                System.arraycopy(initMsg, offset, msg, 0, dataLen);
                 if("EAG|MySkin".equals(tag)) {
                     if(!skinCollection.containsKey(user)) {
                         int t = (int)msg[0] & 0xFF;
