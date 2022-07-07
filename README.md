@@ -4,7 +4,7 @@ lightweight bungeecord alternative for eaglercraft servers running protocolsuppo
 
 Thanks to LAX1DUDE and md-5 for very small snippets of EaglerBungee used in this project (specifically for the server icon, skins, & entity remapping)
 
-**TODO: ability for plugins to change a player's server & built-in auth system**
+**TODO: built-in auth system & more bungee backwards compatibility**
 
 
 
