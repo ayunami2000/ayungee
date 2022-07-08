@@ -117,7 +117,7 @@ public class Main {
             }
         }
 
-        Map<String, Object> configAuth = new HashMap<>();
+        Map<String, Object> configAuth = new LinkedHashMap<>();
         configAuth.put("enabled", false);
         configAuth.put("ip_limit", -1);
 
@@ -142,7 +142,7 @@ public class Main {
 
         defaultPlayersMotd.add("whar?");
 
-        Map<String, Object> defaultConfigMotd = new HashMap<>();
+        Map<String, Object> defaultConfigMotd = new LinkedHashMap<>();
 
         defaultConfigMotd.put("lines", defaultMotd);
         defaultConfigMotd.put("max", 20);
