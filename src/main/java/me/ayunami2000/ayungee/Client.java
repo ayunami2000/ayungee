@@ -28,8 +28,13 @@ public class Client {
 
     public boolean hasLoginHappened = false;
 
+    public boolean authed = !Main.useAuth;
+
     public int clientEntityId;
     public int serverEntityId;
+
+    public List<byte[]> packetCache = new ArrayList<>();
+    public byte[] positionPacket = null;
 
     public void setSocket(Socket sock) throws IOException {
         socket = sock;

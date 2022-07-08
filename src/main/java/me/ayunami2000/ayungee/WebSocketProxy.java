@@ -53,9 +53,9 @@ public class WebSocketProxy extends WebSocketServer {
         }
         new Thread(() -> {
             try {
-                Thread.sleep(5000);
+                Thread.sleep(10000);
             } catch (InterruptedException ignored) {}
-            if (conn.isOpen() && (Main.bans.contains(Main.getIp(conn)) || !Main.clients.containsKey(conn))) conn.close();
+            if (conn.isOpen() && (Main.bans.contains(Main.getIp(conn)) || !Main.clients.containsKey(conn) || !Main.clients.get(conn).authed)) conn.close();
         }).start();
     }
 
@@ -113,6 +113,10 @@ public class WebSocketProxy extends WebSocketServer {
                 StringBuilder unameBuilder = new StringBuilder();
                 for (int i = 0; i < unameLen; i++) unameBuilder.append(message.getChar());
                 String username = unameBuilder.toString();
+                if (!username.equals(username.replaceAll("[^A-Za-z0-9_-]", "_"))) {
+                    conn.close();
+                    return;
+                }
                 if (Main.clients.values().stream().anyMatch(client -> client.username.equals(username) || client.conn == conn)) {
                     conn.close();
                     return;
@@ -123,9 +127,16 @@ public class WebSocketProxy extends WebSocketServer {
                     try {
                         while (conn.isOpen()) {
                             int currServer = selfClient.server;
+                            if (currServer == -1 && selfClient.authed) currServer = selfClient.server = 0;
                             selfClient.hasLoginHappened = false;
-                            if (!selfClient.firstTime) Main.printMsg("Player " + selfClient + " joined server " + selfClient.server + "!");
+                            if (!selfClient.firstTime) Main.printMsg("Player " + selfClient + " joined server " + currServer + "!");
                             ServerItem chosenServer = Main.servers.get(currServer);
+                            /*
+                            if (chosenServer.host.equals(Main.authKey)) {
+                                // todo: custom server here
+                                return;
+                            }
+                            */
                             Socket selfSocket = new Socket();
                             try {
                                 // todo: pregenerate InetSocketAddresses
@@ -154,6 +165,7 @@ public class WebSocketProxy extends WebSocketServer {
                                 }
                                 if (ChatHandler.serverChatMessage(selfClient, data)) continue;
                                 if (PluginMessages.serverPluginMessage(selfClient, data)) continue;
+                                if (!selfClient.authed && data[0] == 13) selfClient.positionPacket = data;
                                 boolean loginPacket = data[0] == 1;
                                 if (loginPacket && !selfClient.hasLoginHappened) selfClient.hasLoginHappened = true;
                                 if (selfClient.firstTime && loginPacket) selfClient.clientEntityId = selfClient.serverEntityId = EntityMap.readInt(data, 1);
@@ -182,7 +194,17 @@ public class WebSocketProxy extends WebSocketServer {
                                     if (conn.isOpen()) conn.send(new byte[] { 9, 0, 0, 0, -1, 0, 0, 1, 0, 0, 7, 0, 100, 0, 101, 0, 102, 0, 97, 0, 117, 0, 108, 0, 116 });
                                 }
                                 EntityMap.rewrite(data, selfClient.serverEntityId, selfClient.clientEntityId);
-                                if (conn.isOpen()) conn.send(data);
+                                if (selfClient.authed || ((loginPacket || data[0] == 51 || data[0] == 13 || data[0] == 6) || !selfClient.hasLoginHappened)) {
+                                    if (selfClient.authed) {
+                                        while (selfClient.packetCache.size() > 0) {
+                                            if (conn.isOpen()) conn.send(selfClient.packetCache.remove(0));
+                                        }
+                                    }
+                                    if (conn.isOpen()) conn.send(data);
+                                } else {
+                                    // cache data
+                                    selfClient.packetCache.add(data);
+                                }
                                 if (loginPacket) sendToServer(new byte[] { (byte) 250, 0, 8, 0, 82, 0, 69, 0, 71, 0, 73, 0, 83, 0, 84, 0, 69, 0, 82, 0, 10, 66, 117, 110, 103, 101, 101, 67, 111, 114, 100 }, selfClient);
                             }
                             if (conn.isOpen() && selfClient.server == currServer) conn.close();
@@ -216,6 +238,13 @@ public class WebSocketProxy extends WebSocketServer {
     }
 
     public void sendToServer(byte[] orig, Client client) throws IOException {
+        if (!client.authed) {
+            if (orig.length > 0) {
+                if (orig[0] == 2 || orig[0] == 3) client.conn.send(new byte[] { 3, 0, 114, 0, (byte) 167, 0, 57, 0, 80, 0, 108, 0, 101, 0, 97, 0, 115, 0, 101, 0, 32, 0, 114, 0, 101, 0, 103, 0, 105, 0, 115, 0, 116, 0, 101, 0, 114, 0, 32, 0, 111, 0, 114, 0, 32, 0, 108, 0, 111, 0, 103, 0, 105, 0, 110, 0, 32, 0, 116, 0, 111, 0, 32, 0, 99, 0, 111, 0, 110, 0, 116, 0, 105, 0, 110, 0, 117, 0, 101, 0, 32, 0, 116, 0, 111, 0, 32, 0, 116, 0, 104, 0, 105, 0, 115, 0, 32, 0, 115, 0, 101, 0, 114, 0, 118, 0, 101, 0, 114, 0, 33, 0, 32, 0, 47, 0, 114, 0, 101, 0, 103, 0, 105, 0, 115, 0, 116, 0, 101, 0, 114, 0, 32, 0, 60, 0, 112, 0, 97, 0, 115, 0, 115, 0, 119, 0, 111, 0, 114, 0, 100, 0, 62, 0, 32, 0, 60, 0, 99, 0, 111, 0, 110, 0, 102, 0, 105, 0, 114, 0, 109, 0, 80, 0, 97, 0, 115, 0, 115, 0, 119, 0, 111, 0, 114, 0, 100, 0, 62, 0, 32, 0, 111, 0, 114, 0, 32, 0, 47, 0, 108, 0, 111, 0, 103, 0, 105, 0, 110, 0, 32, 0, 60, 0, 112, 0, 97, 0, 115, 0, 115, 0, 119, 0, 111, 0, 114, 0, 100, 0, 62 });
+                if (orig[0] == 10 || orig[0] == 11 || orig[0] == 12 || orig[0] == 13 || orig[0] == 14 || orig[0] == 15) client.conn.send(client.positionPacket);
+            }
+            if (client.hasLoginHappened) return; // drop client packets :trol:
+        }
         byte[] data = orig.clone();
         EntityMap.rewrite(data, client.clientEntityId, client.serverEntityId);
         client.socketOut.write(data);

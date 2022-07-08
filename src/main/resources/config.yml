@@ -11,6 +11,12 @@ origin_blacklist: "https://g.eags.us/eaglercraft/origin_blacklist.txt"
 # for example,
 #   - "https://g.eags.us"
 origins: []
+# authentication info
+auth:
+  # use auth
+  enabled: false
+  # max registers per ip (set to 0 for unlimited, not recommended, but necessary for servers that cannot see user IPs)
+  ip_limit: 0
 # motd info
 motd:
   # the motd itself

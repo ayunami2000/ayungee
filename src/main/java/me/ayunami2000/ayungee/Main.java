@@ -24,6 +24,11 @@ public class Main {
 
     public static boolean forwarded = false;
 
+    public static boolean filterUsernames = true;
+
+    public static boolean useAuth = false;
+    public static int authIpLimit = -1;
+
     public static WebSocketServer webSocketServer = null;
 
     public static Map<WebSocket, Client> clients = new HashMap<>();
@@ -110,6 +115,19 @@ public class Main {
             for (String serverEntry : stringServers) {
                 servers.add(new ServerItem(serverEntry));
             }
+        }
+
+        Map<String, Object> configAuth = new HashMap<>();
+        configAuth.put("enabled", false);
+        configAuth.put("ip_limit", -1);
+
+        configAuth = (LinkedHashMap<String, Object>) config.getOrDefault("auth", configAuth);
+
+        useAuth = (boolean) configAuth.getOrDefault("enabled", false);
+
+        if (useAuth) {
+            authIpLimit = (int) configAuth.getOrDefault("ip_limit", 0);
+            Auth.readDatabase();
         }
 
         webPort = (int) config.getOrDefault("web_port", 25565);
@@ -279,6 +297,10 @@ public class Main {
                         break;
                     }
                     */
+                    if (!targetUser.authed) {
+                        printMsg("That user is not yet authenticated!");
+                        break;
+                    }
                     try {
                         int destServer = Integer.parseInt(pieces[2]);
                         targetUser.server = Math.max(0, Math.min(servers.size() - 1, destServer));

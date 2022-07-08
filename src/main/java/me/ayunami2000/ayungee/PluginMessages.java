@@ -14,6 +14,7 @@ public class PluginMessages {
             try {
                 String bungeeTag = dataIn.readUTF();
                 if (bungeeTag.equals("Connect")) { // actually send current player to server :D
+                    if (!client.authed) return true;
                     String destServer = dataIn.readUTF();
                     try {
                         int destServerInt = Integer.parseInt(destServer);
