@@ -30,6 +30,7 @@ public class WebSocketProxy extends WebSocketServer {
                 conn.close();
                 return;
             }
+            if (origin.contains("://")) origin = origin.substring(origin.indexOf("://") + 3);
             if (!Main.originWhitelist.isEmpty() && !Main.originWhitelist.contains(origin)) {
                 conn.close();
                 return;
