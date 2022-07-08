@@ -7,6 +7,7 @@ import org.java_websocket.server.WebSocketServer;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.Socket;
+import java.net.SocketTimeoutException;
 import java.nio.ByteBuffer;
 import java.time.Instant;
 import java.util.*;
@@ -125,7 +126,14 @@ public class WebSocketProxy extends WebSocketServer {
                             selfClient.hasLoginHappened = false;
                             if (!selfClient.firstTime) Main.printMsg("Player " + selfClient + " joined server " + selfClient.server + "!");
                             ServerItem chosenServer = Main.servers.get(currServer);
-                            Socket selfSocket = new Socket(chosenServer.host, chosenServer.port);
+                            Socket selfSocket = new Socket();
+                            try {
+                                // todo: pregenerate InetSocketAddresses
+                                selfSocket.connect(new InetSocketAddress(chosenServer.host, chosenServer.port), 10000);
+                            } catch (SocketTimeoutException e) {
+                                conn.close();
+                                return;
+                            }
                             selfClient.setSocket(selfSocket);
                             if (!selfClient.firstTime) sendToServer(selfClient.handshake, selfClient);
                             if (selfClient.firstTime) {

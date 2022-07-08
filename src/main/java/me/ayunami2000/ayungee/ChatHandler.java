@@ -24,9 +24,6 @@ public class ChatHandler {
                     try {
                         int destServer = Integer.parseInt(args);
                         client.server = Math.max(0, Math.min(Main.servers.size() - 1, destServer));
-                        try {
-                            client.socket.close();
-                        } catch (IOException ignored) {}
                     } catch (NumberFormatException e) {
                         //not a number
                         client.conn.send(new byte[] { 3, 0, 29, 0, (byte) 167, 0, 57, 0, 84, 0, 104, 0, 97, 0, 116, 0, 32, 0, 105, 0, 115, 0, 32, 0, 110, 0, 111, 0, 116, 0, 32, 0, 97, 0, 32, 0, 118, 0, 97, 0, 108, 0, 105, 0, 100, 0, 32, 0, 110, 0, 117, 0, 109, 0, 98, 0, 101, 0, 114, 0, 33 });

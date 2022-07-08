@@ -282,7 +282,6 @@ public class Main {
                     try {
                         int destServer = Integer.parseInt(pieces[2]);
                         targetUser.server = Math.max(0, Math.min(servers.size() - 1, destServer));
-                        targetUser.socket.close();
                         printMsg("Successfully send user " + targetUser + " to server " + destServer + "!");
                     } catch (NumberFormatException e) {
                         printMsg("That is not a valid number!");
