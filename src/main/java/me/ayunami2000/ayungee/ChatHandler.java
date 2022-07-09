@@ -13,11 +13,8 @@ public class ChatHandler {
         if (!message.startsWith("/")) return false;
         int ind = message.indexOf(' ');
         String commandBase = message.substring(1, ind != -1 ? ind : message.length()).toLowerCase();
-        String args = ind == -1 ? "" : message.substring(ind + 1);
-        int ind2 = args.indexOf(' ');
-        // todo: make it an array at this point dumbass
-        String firstArg = ind2 == -1 ? args : args.substring(0, ind);
-        String secondArg = args.substring(firstArg.length());
+        String args = ind == -1 ? "" : message.substring(ind + 1).trim();
+        String[] argsArr = args.split(" ");
         switch (commandBase) {
             case "server":
                 if (!client.authed) return false;
@@ -39,15 +36,15 @@ public class ChatHandler {
             case "reg":
                 if (!Main.useAuth) return false;
                 if (client.authed) return false;
-                if (firstArg.isEmpty()) {
+                if (argsArr[0].isEmpty()) {
                     client.conn.send(new byte[] { 3, 0, 30, 0, (byte) 167, 0, 57, 0, 89, 0, 111, 0, 117, 0, 32, 0, 109, 0, 117, 0, 115, 0, 116, 0, 32, 0, 115, 0, 112, 0, 101, 0, 99, 0, 105, 0, 102, 0, 121, 0, 32, 0, 97, 0, 32, 0, 112, 0, 97, 0, 115, 0, 115, 0, 119, 0, 111, 0, 114, 0, 100, 0, 46 });
                     return true;
                 }
-                if (!firstArg.equals(secondArg)) {
+                if (argsArr.length == 1 || !argsArr[0].equals(argsArr[1])) {
                     client.conn.send(new byte[] { 3, 0, 31, 0, (byte) 167, 0, 57, 0, 84, 0, 104, 0, 111, 0, 115, 0, 101, 0, 32, 0, 112, 0, 97, 0, 115, 0, 115, 0, 119, 0, 111, 0, 114, 0, 100, 0, 115, 0, 32, 0, 100, 0, 111, 0, 32, 0, 110, 0, 111, 0, 116, 0, 32, 0, 109, 0, 97, 0, 116, 0, 99, 0, 104, 0, 33 });
                     return true;
                 }
-                if (Auth.register(client.username, firstArg.toCharArray(), Main.getIp(client.conn))) {
+                if (Auth.register(client.username, argsArr[0].toCharArray(), Main.getIp(client.conn))) {
                     Main.printMsg("Player " + client + " registered successfully!");
                     client.authed = true;
                     client.server = -1;
@@ -60,11 +57,11 @@ public class ChatHandler {
             case "l":
                 if (!Main.useAuth) return false;
                 if (client.authed) return false;
-                if (firstArg.isEmpty()) {
+                if (argsArr[0].isEmpty()) {
                     client.conn.send(new byte[] { 3, 0, 30, 0, (byte) 167, 0, 57, 0, 89, 0, 111, 0, 117, 0, 32, 0, 109, 0, 117, 0, 115, 0, 116, 0, 32, 0, 115, 0, 112, 0, 101, 0, 99, 0, 105, 0, 102, 0, 121, 0, 32, 0, 97, 0, 32, 0, 112, 0, 97, 0, 115, 0, 115, 0, 119, 0, 111, 0, 114, 0, 100, 0, 46 });
                     return true;
                 }
-                if (Auth.login(client.username, firstArg.toCharArray())) {
+                if (Auth.login(client.username, argsArr[0].toCharArray())) {
                     Main.printMsg("Player " + client + " logged in!");
                     client.authed = true;
                 } else {
@@ -79,7 +76,7 @@ public class ChatHandler {
             case "changepw":
                 if (!Main.useAuth) return false;
                 if (!client.authed) return false;
-                if (firstArg.isEmpty() || secondArg.isEmpty()) {
+                if (argsArr[0].isEmpty() || argsArr.length == 1) {
                     client.conn.send(new byte[] { 3, 0, 63, 0, (byte) 167, 0, 57, 0, 80, 0, 108, 0, 101, 0, 97, 0, 115, 0, 101, 0, 32, 0, 115, 0, 112, 0, 101, 0, 99, 0, 105, 0, 102, 0, 121, 0, 32, 0, 116, 0, 104, 0, 101, 0, 32, 0, 111, 0, 108, 0, 100, 0, 32, 0, 112, 0, 97, 0, 115, 0, 115, 0, 119, 0, 111, 0, 114, 0, 100, 0, 32, 0, 102, 0, 111, 0, 108, 0, 108, 0, 111, 0, 119, 0, 101, 0, 100, 0, 32, 0, 98, 0, 121, 0, 32, 0, 116, 0, 104, 0, 101, 0, 32, 0, 110, 0, 101, 0, 119, 0, 32, 0, 112, 0, 97, 0, 115, 0, 115, 0, 119, 0, 111, 0, 114, 0, 100, 0, 33 });
                     return true;
                 }
@@ -88,12 +85,12 @@ public class ChatHandler {
                     client.conn.send(new byte[] { 3, 0, 60, 0, (byte) 167, 0, 57, 0, 89, 0, 111, 0, 117, 0, 32, 0, 109, 0, 117, 0, 115, 0, 116, 0, 32, 0, 114, 0, 101, 0, 103, 0, 105, 0, 115, 0, 116, 0, 101, 0, 114, 0, 32, 0, 97, 0, 110, 0, 32, 0, 97, 0, 99, 0, 99, 0, 111, 0, 117, 0, 110, 0, 116, 0, 32, 0, 102, 0, 105, 0, 114, 0, 115, 0, 116, 0, 32, 0, 116, 0, 111, 0, 32, 0, 99, 0, 104, 0, 97, 0, 110, 0, 103, 0, 101, 0, 32, 0, 105, 0, 116, 0, 115, 0, 32, 0, 112, 0, 97, 0, 115, 0, 115, 0, 119, 0, 111, 0, 114, 0, 100, 0, 33 });
                     return true;
                 }
-                if (!Auth.login(client.username, firstArg.toCharArray())) {
+                if (!Auth.login(client.username, argsArr[0].toCharArray())) {
                     // invalid old password
                     client.conn.send(new byte[] { 3, 0, 29, 0, (byte) 167, 0, 57, 0, 84, 0, 104, 0, 97, 0, 116, 0, 32, 0, 112, 0, 97, 0, 115, 0, 115, 0, 119, 0, 111, 0, 114, 0, 100, 0, 32, 0, 105, 0, 115, 0, 32, 0, 105, 0, 110, 0, 99, 0, 111, 0, 114, 0, 114, 0, 101, 0, 99, 0, 116, 0, 33 });
                     return true;
                 }
-                if (Auth.changePass(client.username, secondArg.toCharArray())) {
+                if (Auth.changePass(client.username, argsArr[1].toCharArray())) {
                     // changed password!
                     Main.printMsg("Player " + client + " changed their password!");
                     client.conn.send(new byte[] { 3, 0, 33, 0, (byte) 167, 0, 57, 0, 89, 0, 111, 0, 117, 0, 114, 0, 32, 0, 112, 0, 97, 0, 115, 0, 115, 0, 119, 0, 111, 0, 114, 0, 100, 0, 32, 0, 104, 0, 97, 0, 115, 0, 32, 0, 98, 0, 101, 0, 101, 0, 110, 0, 32, 0, 99, 0, 104, 0, 97, 0, 110, 0, 103, 0, 101, 0, 100, 0, 33 });
