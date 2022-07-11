@@ -19,6 +19,8 @@ public class ChatHandler {
             case "server":
                 if (!client.authed) return false;
 
+                if (!Main.serverCmd) return false;
+
                 if (args.isEmpty()) {
                     //usage msg
                     client.conn.send(new byte[] { 3, 0, 25, 0, (byte) 167, 0, 57, 0, 85, 0, 115, 0, 97, 0, 103, 0, 101, 0, 58, 0, 32, 0, 47, 0, 115, 0, 101, 0, 114, 0, 118, 0, 101, 0, 114, 0, 32, 0, 60, 0, 110, 0, 117, 0, 109, 0, 98, 0, 101, 0, 114, 0, 62 });

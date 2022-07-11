@@ -11,6 +11,8 @@ origin_blacklist: "https://g.eags.us/eaglercraft/origin_blacklist.txt"
 # for example,
 #   - "https://g.eags.us"
 origins: []
+# enable /server command?
+server_cmd: true
 # authentication info
 auth:
   # use auth

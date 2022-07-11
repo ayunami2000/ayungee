@@ -24,7 +24,7 @@ public class Main {
 
     public static boolean forwarded = false;
 
-    public static boolean filterUsernames = true;
+    public static boolean serverCmd = true;
 
     public static boolean useAuth = false;
     public static int authIpLimit = -1;
@@ -132,6 +132,7 @@ public class Main {
 
         webPort = (int) config.getOrDefault("web_port", 25565);
         forwarded = (boolean) config.getOrDefault("forwarded", false);
+        serverCmd = (boolean) config.getOrDefault("server_cmd", true);
 
         List<String> defaultMotd = new ArrayList<>();
 
