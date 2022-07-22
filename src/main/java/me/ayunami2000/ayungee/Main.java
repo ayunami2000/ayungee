@@ -23,8 +23,10 @@ public class Main {
     public static byte[] serverIcon = null;
 
     public static boolean forwarded = false;
-
     public static boolean serverCmd = true;
+
+    public static boolean voiceEnabled = true;
+    public static List<String> voiceICE = new ArrayList<>();
 
     public static boolean useAuth = false;
     public static int authIpLimit = -1;
@@ -116,6 +118,21 @@ public class Main {
                 servers.add(new ServerItem(serverEntry));
             }
         }
+
+        voiceICE.add("stun:openrelay.metered.ca:80");
+        voiceICE.add("turn:openrelay.metered.ca:80;openrelayproject;openrelayproject");
+        voiceICE.add("turn:openrelay.metered.ca:443;openrelayproject;openrelayproject");
+        voiceICE.add("turn:openrelay.metered.ca:443?transport=tcp;openrelayproject;openrelayproject");
+
+        Map<String, Object> configVoice = new LinkedHashMap<>();
+        configVoice.put("enabled", true);
+        configVoice.put("ice", voiceICE);
+
+        configVoice = (LinkedHashMap<String, Object>) config.getOrDefault("voice", configVoice);
+
+        voiceEnabled = (boolean) configVoice.getOrDefault("enabled", true);
+
+        voiceICE = (List<String>) configVoice.getOrDefault("ice", voiceICE);
 
         Map<String, Object> configAuth = new LinkedHashMap<>();
         configAuth.put("enabled", false);

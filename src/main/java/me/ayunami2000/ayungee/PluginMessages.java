@@ -30,7 +30,7 @@ public class PluginMessages {
     }
 
     public static boolean fromClient(Client client, String name, byte[] data) {
-        return Skins.setSkin(client.username, client.conn, name, data);
+        return Skins.setSkin(client.username, client.conn, name, data) || Voice.handleVoice(client.username, client.conn, name, data);
     }
 
     public static boolean serverPluginMessage(Client client, byte[] packet) {

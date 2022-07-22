@@ -13,6 +13,18 @@ origin_blacklist: "https://g.eags.us/eaglercraft/origin_blacklist.txt"
 origins: []
 # enable /server command?
 server_cmd: true
+# voice chat
+voice:
+  # enable voice chat
+  enabled: true
+  # voice chat ICE servers
+  # format is like <server> OR <server>;<username>;<password>
+  # chances are you won't have to change these
+  ice:
+    - "stun:openrelay.metered.ca:80"
+    - "turn:openrelay.metered.ca:80;openrelayproject;openrelayproject"
+    - "turn:openrelay.metered.ca:443;openrelayproject;openrelayproject"
+    - "turn:openrelay.metered.ca:443?transport=tcp;openrelayproject;openrelayproject"
 # authentication info
 auth:
   # use auth

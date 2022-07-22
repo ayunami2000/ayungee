@@ -66,6 +66,7 @@ public class WebSocketProxy extends WebSocketServer {
         if (selfClient != null) {
             Main.printMsg("Player " + selfClient + " left!");
             Skins.removeSkin(selfClient.username);
+            Voice.onQuit(selfClient.username);
             if (selfClient.socket.isClosed()) {
                 try {
                     selfClient.socket.close();
@@ -169,7 +170,10 @@ public class WebSocketProxy extends WebSocketServer {
                                 if (!selfClient.authed && data[0] == 13) selfClient.positionPacket = data;
                                 boolean loginPacket = data[0] == 1;
                                 if (loginPacket && !selfClient.hasLoginHappened) selfClient.hasLoginHappened = true;
-                                if (selfClient.firstTime && loginPacket) selfClient.clientEntityId = selfClient.serverEntityId = EntityMap.readInt(data, 1);
+                                if (selfClient.firstTime && loginPacket) {
+                                    selfClient.clientEntityId = selfClient.serverEntityId = EntityMap.readInt(data, 1);
+                                    Voice.onLogin(username, conn);
+                                }
                                 if (!selfClient.firstTime && loginPacket) {
                                     selfClient.serverEntityId = EntityMap.readInt(data, 1);
                                     // assume server is giving valid data; we don't have to validate it because it isn't a potentially malicious client
